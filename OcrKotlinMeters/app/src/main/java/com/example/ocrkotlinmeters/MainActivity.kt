@@ -17,7 +17,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.io.BufferedReader
 import java.io.IOException
 import java.io.InputStream
@@ -40,6 +39,7 @@ class MainActivity : AppCompatActivity() {
     private var sizeUrl = 0
     private var contador = 0
     private val sbuffer = StringBuffer()
+    lateinit var textRecognizer: TextRecognizer
 
     // Propiedad para el Job de las coroutines
     private val coroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -50,14 +50,15 @@ class MainActivity : AppCompatActivity() {
 
         val urls = readUrlsFromFile(FILE_NAME)
         sizeUrl = urls.size
+        textRecognizer = TextRecognizer.Builder(applicationContext).build()
 
         // Llamar a la función loadImageFromUrl utilizando launch para cada URL en la lista
         coroutineScope.launch {
             for (url in urls) {
                 Log.d("TAG", "onCreate: " + contador++)
                 // delay(500)
-                 descargarImagen(url)?.let { processImageWithTextRecognizer(it, url) }
-                descargarImagen(url)
+                descargarImagen(url)?.let { processImageWithTextRecognizer(it, url) }
+                //descargarImagen(url)
                 //    awaitDownloadApk()
             }
         }
@@ -119,51 +120,50 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private suspend fun processImageWithTextRecognizer(bitmap: Bitmap, url: String) =
-        withContext(Dispatchers.IO) {
-            try {
-               // contador++
-                // Crear el marco para la imagen
-                val frame = Frame.Builder().setBitmap(bitmap).build()
+    private fun processImageWithTextRecognizer(bitmap: Bitmap, url: String) {
+        try {
+            // contador++
+            // Crear el marco para la imagen
+            val frame = Frame.Builder().setBitmap(bitmap).build()
 
-                // Realizar la detección de texto
-                val textRecognizer = TextRecognizer.Builder(this@MainActivity).build()
-                val textBlocks = textRecognizer.detect(frame)
+            // Realizar la detección de texto
 
-                // Recorrer los bloques de texto detectados y buscar el texto específico
-                /*for (i in 0 until textBlocks.size()) {
-                    val textBlock = textBlocks.valueAt(i)
-                    val text = textBlock.value
-                    if (sizeUrl == contador) {
-                        Log.d("TAG", "processImageWithTextRecognizer: $contador")
-                    }
-                    // Verificar si el texto específico está contenido en el bloque de texto actual
-                    if (text.contains("Ord", true) || text.contains("Qrden", true) ||
-                        text.contains("Drden", true) || text.contains("Ocen", true) ||
-                        text.contains("Oden", true) || text.contains("Or e", true)
-                    ) {
-                        // Hacer algo con el texto encontrado
-                        // Por ejemplo, mostrarlo en un TextView
-                        val extractedText = extractTextAfterOrd(text)
+            val textBlocks = textRecognizer.detect(frame)
+
+            // Recorrer los bloques de texto detectados y buscar el texto específico
+            for (i in 0 until textBlocks.size()) {
+                val textBlock = textBlocks.valueAt(i)
+                val text = textBlock.value
+                if (sizeUrl == contador) {
+                    Log.d("TAG", "processImageWithTextRecognizer: $contador")
+                }
+                // Verificar si el texto específico está contenido en el bloque de texto actual
+                if (text.contains("Ord", true) || text.contains("Qrden", true) ||
+                    text.contains("Drden", true) || text.contains("Ocen", true) ||
+                    text.contains("Oden", true) || text.contains("Or e", true)
+                ) {
+                    // Hacer algo con el texto encontrado
+                    // Por ejemplo, mostrarlo en un TextView
+                    val extractedText = extractTextAfterOrd(text)
 //                        sbuffer.append("${extractedText ?: "null"}  $url\n")
-                        Log.d(
-                            "TAG",
-                            "processImageWithTextRecognizer: $sizeUrl $contador $extractedText"
-                        )
-                        break // Si ya se encontró el texto, salir del bucle
-                    } else {
-                        Log.d(
-                            "TAG",
-                            "processImageWithTextRecognizer: $sizeUrl $contador "
-                        )
+                    Log.d(
+                        "TAG",
+                        "processImageWithTextRecognizer: $sizeUrl $contador $extractedText"
+                    )
+                    break // Si ya se encontró el texto, salir del bucle
+                } else {
+                    Log.d(
+                        "TAG",
+                        "processImageWithTextRecognizer: $sizeUrl $contador "
+                    )
 //                        sbuffer.append("NO PUDO OBTENER ORDEN $url\n")
-                    }
-                }*/
-                //  downloadApkDeferred?.complete(true)
-            } catch (e: Exception) {
-                Log.e("Error ocr", "processImageWithTextRecognizer: " + e.message)
+                }
             }
+            //  downloadApkDeferred?.complete(true)
+        } catch (e: Exception) {
+            Log.e("Error ocr", "processImageWithTextRecognizer: " + e.message)
         }
+    }
 
 
     companion object {
