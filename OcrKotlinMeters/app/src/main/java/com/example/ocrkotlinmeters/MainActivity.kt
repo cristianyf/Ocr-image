@@ -27,12 +27,6 @@ import java.util.regex.Matcher
 import java.util.regex.Pattern
 import kotlin.coroutines.coroutineContext
 
-var downloadApkDeferred: CompletableDeferred<Boolean>? = null
-internal suspend inline fun awaitDownloadApk(): Boolean {
-    val deferred = CompletableDeferred<Boolean>(coroutineContext[Job])
-    downloadApkDeferred = deferred
-    return deferred.await()
-}
 
 class MainActivity : AppCompatActivity() {
 
@@ -56,13 +50,14 @@ class MainActivity : AppCompatActivity() {
         // Llamar a la función loadImageFromUrl utilizando launch para cada URL en la lista
         coroutineScope.launch {
             for (url in urls) {
-                Log.d("TAG", "onCreate: " + contador++)
+                Log.d("TAG", "onCreate: " + ++contador)
                 // delay(500)
                 descargarImagen(url)?.let { processImageWithTextRecognizer(it, url) }
                 //descargarImagen(url)
                 //    awaitDownloadApk()
             }
-            saveToFileInInternalStorage(sbuffer.toString(), "mi_archivo.txt", this@MainActivity)
+            saveToFileInInternalStorage(sbuffer.toString(), "mi_archivo.txt", applicationContext)
+
         }
     }
 
@@ -129,8 +124,8 @@ class MainActivity : AppCompatActivity() {
                 ) {
                     // Hacer algo con el texto encontrado
                     // Por ejemplo, mostrarlo en un TextView
-                    val extractedText = extractTextAfterOrd(text) + ","
-                    sbuffer.append("${extractedText ?: "null"}  $url\n")
+                    val extractedText = extractTextAfterOrd(text)
+                    sbuffer.append("${extractedText}, $url\n")
                     Log.d(
                         "TAG",
                         "processImageWithTextRecognizer: $sizeUrl $contador $extractedText"
@@ -141,13 +136,15 @@ class MainActivity : AppCompatActivity() {
                         "TAG",
                         "processImageWithTextRecognizer: $sizeUrl $contador "
                     )
-                    sbuffer.append("NO PUDO OBTENER ORDEN $url\n")
+                    sbuffer.append("NO PUDO OBTENER ORDEN, $url\n")
                 }
             }
             //  downloadApkDeferred?.complete(true)
         } catch (e: Exception) {
             Log.e("Error ocr", "processImageWithTextRecognizer: " + e.message)
         }
+
+
     }
 
     ///data/user/0/com.example.ocrkotlinmeters/files/mi_archivo.txt
@@ -171,7 +168,8 @@ class MainActivity : AppCompatActivity() {
             //Pattern pattern = Pattern.compile("(O|Q|D)\\w{1,}[.:;]\\s*(\\d{6})")
             val matcher: Matcher = pattern.matcher(inputText)
             if (matcher.find()) {
-                extractedText = matcher.group(1)
+                val group1 = matcher.group(1)
+                extractedText = group1?.filter { it.isDigit() }
             }
             return extractedText
         }
