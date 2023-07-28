@@ -1,13 +1,11 @@
 package com.example.ocrkotlinmeters
 
+import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Bundle
 import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
-import com.bumptech.glide.Glide
-import com.bumptech.glide.request.target.SimpleTarget
-import com.bumptech.glide.request.transition.Transition
 import com.google.android.gms.vision.Frame
 import com.google.android.gms.vision.text.TextRecognizer
 import kotlinx.coroutines.CompletableDeferred
@@ -18,6 +16,9 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.launch
 import java.io.BufferedReader
+import java.io.BufferedWriter
+import java.io.File
+import java.io.FileWriter
 import java.io.IOException
 import java.io.InputStream
 import java.io.InputStreamReader
@@ -91,23 +92,6 @@ class MainActivity : AppCompatActivity() {
         return urls
     }
 
-    private suspend fun loadImageFromUrl(url: String) {
-        Glide.with(this@MainActivity)
-            .asBitmap()
-            .load(url)
-            .into(object : SimpleTarget<Bitmap?>() {
-                override fun onResourceReady(
-                    resource: Bitmap,
-                    transition: Transition<in Bitmap?>?
-                ) {
-                    coroutineScope.launch {
-                        processImageWithTextRecognizer(resource, url)
-                    }
-
-                }
-            })
-    }
-
     fun descargarImagen(urlLogo: String): Bitmap? {
         val url = URL(urlLogo)
         try {
@@ -144,8 +128,8 @@ class MainActivity : AppCompatActivity() {
                 ) {
                     // Hacer algo con el texto encontrado
                     // Por ejemplo, mostrarlo en un TextView
-                    val extractedText = extractTextAfterOrd(text)
-//                        sbuffer.append("${extractedText ?: "null"}  $url\n")
+                    val extractedText = extractTextAfterOrd(text) + ","
+                    sbuffer.append("${extractedText ?: "null"}  $url\n")
                     Log.d(
                         "TAG",
                         "processImageWithTextRecognizer: $sizeUrl $contador $extractedText"
@@ -156,12 +140,28 @@ class MainActivity : AppCompatActivity() {
                         "TAG",
                         "processImageWithTextRecognizer: $sizeUrl $contador "
                     )
-//                        sbuffer.append("NO PUDO OBTENER ORDEN $url\n")
+                    sbuffer.append("NO PUDO OBTENER ORDEN $url\n")
                 }
             }
             //  downloadApkDeferred?.complete(true)
         } catch (e: Exception) {
             Log.e("Error ocr", "processImageWithTextRecognizer: " + e.message)
+        }
+
+        saveToFileInInternalStorage(sbuffer.toString(), "mi_archivo.txt", this)
+
+    }
+
+    ///data/user/0/com.example.ocrkotlinmeters/files/mi_archivo.txt
+    fun saveToFileInInternalStorage(content: String, fileName: String, context: Context) {
+        try {
+            val file = File(context.filesDir, fileName)
+            val writer = BufferedWriter(FileWriter(file))
+            writer.write(content)
+            writer.close()
+            Log.d("TAG", "Archivo guardado correctamente en el directorio de archivos internos.")
+        } catch (e: IOException) {
+            Log.e("TAG", "Error al guardar el archivo: ${e.message}")
         }
     }
 
