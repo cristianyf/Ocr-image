@@ -62,6 +62,7 @@ class MainActivity : AppCompatActivity() {
                 //descargarImagen(url)
                 //    awaitDownloadApk()
             }
+            saveToFileInInternalStorage(sbuffer.toString(), "mi_archivo.txt", this@MainActivity)
         }
     }
 
@@ -147,9 +148,6 @@ class MainActivity : AppCompatActivity() {
         } catch (e: Exception) {
             Log.e("Error ocr", "processImageWithTextRecognizer: " + e.message)
         }
-
-        saveToFileInInternalStorage(sbuffer.toString(), "mi_archivo.txt", this)
-
     }
 
     ///data/user/0/com.example.ocrkotlinmeters/files/mi_archivo.txt
