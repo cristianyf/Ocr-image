@@ -8,10 +8,8 @@ import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.gms.vision.Frame
 import com.google.android.gms.vision.text.TextRecognizer
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.launch
@@ -25,7 +23,6 @@ import java.io.InputStreamReader
 import java.net.URL
 import java.util.regex.Matcher
 import java.util.regex.Pattern
-import kotlin.coroutines.coroutineContext
 
 
 class MainActivity : AppCompatActivity() {
@@ -34,6 +31,7 @@ class MainActivity : AppCompatActivity() {
     private var sizeUrl = 0
     private var contador = 0
     private val sbuffer = StringBuffer()
+    private val sbufferFallidas = StringBuffer()
     lateinit var textRecognizer: TextRecognizer
 
     // Propiedad para el Job de las coroutines
@@ -48,6 +46,24 @@ class MainActivity : AppCompatActivity() {
         textRecognizer = TextRecognizer.Builder(applicationContext).build()
 
         // Llamar a la función loadImageFromUrl utilizando launch para cada URL en la lista
+        /*coroutineScope.launch {
+            for (url in urls) {
+                Log.d("TAG", "onCreate: " + ++contador)
+                val parts = url.split(", ".toRegex()).dropLastWhile { it.isEmpty() }
+                    .toTypedArray()
+                val part2 = parts[1]
+
+                descargarImagen(part2)?.let { processImageWithTextRecognizer(it, part2) }
+            }
+            saveToFileInInternalStorage(sbuffer.toString(), "mi_archivo.txt", applicationContext)
+            saveToFileInInternalStorage(
+                sbufferFallidas.toString(),
+                "mi_archivo_fallidas.txt",
+                applicationContext
+            )
+        }*/
+
+        // Llamar a la función loadImageFromUrl utilizando launch para cada URL en la lista
         coroutineScope.launch {
             for (url in urls) {
                 Log.d("TAG", "onCreate: " + ++contador)
@@ -57,12 +73,15 @@ class MainActivity : AppCompatActivity() {
                 //    awaitDownloadApk()
             }
             saveToFileInInternalStorage(sbuffer.toString(), "mi_archivo.txt", applicationContext)
-
+            saveToFileInInternalStorage(
+                sbufferFallidas.toString(),
+                "mi_archivo_fallidas.txt",
+                applicationContext
+            )
         }
     }
 
     // Resto del código de la actividad...
-
     override fun onDestroy() {
         super.onDestroy()
         // Cancelar el Job en el onDestroy para evitar memory leaks
@@ -70,8 +89,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     // Resto del código de la actividad...
-
-
     private fun readUrlsFromFile(fileName: String): List<String> {
         val urls = ArrayList<String>()
         try {
@@ -95,59 +112,98 @@ class MainActivity : AppCompatActivity() {
             val bitmap = BitmapFactory.decodeByteArray(imageData, 0, imageData.size)
             return bitmap
         } catch (e: IOException) {
+            Log.e("IOException", "descargarImagen: " + e.message + " ," + urlLogo)
+            sbufferFallidas.append("                  " + "\n" + url + "\n" + "------------------------------------------------------" + "\n" + "\n")
             e.message
             return null
         }
     }
 
     private fun processImageWithTextRecognizer(bitmap: Bitmap, url: String) {
+        var text = ""
         try {
-            // contador++
-            // Crear el marco para la imagen
             val frame = Frame.Builder().setBitmap(bitmap).build()
-
-            // Realizar la detección de texto
-
             val textBlocks = textRecognizer.detect(frame)
-
-            // Recorrer los bloques de texto detectados y buscar el texto específico
             for (i in 0 until textBlocks.size()) {
                 val textBlock = textBlocks.valueAt(i)
-                val text = textBlock.value
+                text = textBlock.value
                 if (sizeUrl == contador) {
                     Log.d("TAG", "processImageWithTextRecognizer: $contador")
                 }
-                // Verificar si el texto específico está contenido en el bloque de texto actual
-                if (text.contains("Ord", true) || text.contains("Qrden", true) ||
-                    text.contains("Drden", true) || text.contains("Ocen", true) ||
-                    text.contains("Oden", true) || text.contains("Or e", true)
-                ) {
-                    // Hacer algo con el texto encontrado
-                    // Por ejemplo, mostrarlo en un TextView
-                    val extractedText = extractTextAfterOrd(text)
-                    sbuffer.append("${extractedText}, $url\n")
-                    Log.d(
-                        "TAG",
-                        "processImageWithTextRecognizer: $sizeUrl $contador $extractedText"
+                /*if (text.contains(
+                        "en",
+                        ignoreCase = true
                     )
-                    break // Si ya se encontró el texto, salir del bucle
+                ) {*/
+                val extractedText = extractTextAfterOrd(text)
+                //if (extractedText != null && extractedText.length == 6) {
+                if (extractedText != null) {
+                    sbuffer.append("${extractedText}, $url\n")
                 } else {
+                    sbufferFallidas.append("${extractedText}, $url\n")
+                }
+                Log.d(
+                    "TAG",
+                    "processImageWithTextRecognizer: $sizeUrl $contador $extractedText"
+                )
+                break // Si ya se encontró el texto, salir del bucle
+                /*} else {
                     Log.d(
                         "TAG",
                         "processImageWithTextRecognizer: $sizeUrl $contador "
                     )
-                    sbuffer.append("NO PUDO OBTENER ORDEN, $url\n")
-                }
+                    // sbuffer.append("                  " + "\n" + text + "\n" + url + "\n" + "------------------------------------------------------" + "\n" + "\n")
+                    sbufferFallidas.append("NO PUDO OBTENER ORDEN, $url\n")
+                }*/
             }
-            //  downloadApkDeferred?.complete(true)
         } catch (e: Exception) {
-            Log.e("Error ocr", "processImageWithTextRecognizer: " + e.message)
+            sbufferFallidas.append("                  " + "\n" + text + "\n" + url + "\n" + "------------------------------------------------------" + "\n" + "\n")
+            Log.e("Exception", "processImageWithTextRecognizer: " + e.message + " , " + url)
         }
-
-
     }
 
-    ///data/user/0/com.example.ocrkotlinmeters/files/mi_archivo.txt
+    //MEDIDOR
+
+    companion object {
+        fun extractTextAfterOrd(inputText: String): String? {
+            var extractedText: String? = null
+            val pattern: Pattern = Pattern.compile("(?i)\\bMedidor\\b\\s+([A-Z0-9-]+)")
+            val matcher: Matcher = pattern.matcher(inputText)
+            if (matcher.find()) {
+                extractedText = matcher.group(1)
+            }
+            return extractedText
+        }
+    }
+
+    /*companion object {
+        fun extractTextAfterOrd(inputText: String): String? {
+            var extractedText: String? = null
+            val pattern: Pattern = Pattern.compile("(?i)en:\\s*(\\d+)")
+            val matcher: Matcher = pattern.matcher(inputText)
+            if (matcher.find()) {
+                val group1 = matcher.group(1)
+                extractedText = group1?.filter { it.isDigit() }
+            } else {
+                val pattern: Pattern = Pattern.compile("(?i)Ord\\s*(.*)")
+                val matcher: Matcher = pattern.matcher(inputText)
+                if (matcher.find()) {
+                    val group1 = matcher.group(1)
+                    extractedText = group1?.filter { it.isDigit() }
+                }
+            }
+            if (extractedText != null && extractedText.length != 6) {
+                val pattern: Pattern = Pattern.compile("(?i)Ord\\s*(.*)")
+                val matcher: Matcher = pattern.matcher(inputText)
+                if (matcher.find()) {
+                    val group1 = matcher.group(1)
+                    extractedText = group1?.filter { it.isDigit() }
+                }
+            }
+            return extractedText
+        }
+    }*/
+
     fun saveToFileInInternalStorage(content: String, fileName: String, context: Context) {
         try {
             val file = File(context.filesDir, fileName)
@@ -160,20 +216,4 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-
-    companion object {
-        fun extractTextAfterOrd(inputText: String): String? {
-            var extractedText: String? = null
-            val pattern: Pattern = Pattern.compile("(?i)Ord\\s*(.*)")
-            //Pattern pattern = Pattern.compile("(O|Q|D)\\w{1,}[.:;]\\s*(\\d{6})")
-            val matcher: Matcher = pattern.matcher(inputText)
-            if (matcher.find()) {
-                val group1 = matcher.group(1)
-                extractedText = group1?.filter { it.isDigit() }
-            }
-            return extractedText
-        }
-    }
 }
-
-
